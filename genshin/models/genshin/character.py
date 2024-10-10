@@ -4,17 +4,10 @@ import logging
 import re
 import typing
 
-from genshin.utility import deprecation
-
-if typing.TYPE_CHECKING:
-    import pydantic.v1 as pydantic
-else:
-    try:
-        import pydantic.v1 as pydantic
-    except ImportError:
-        import pydantic
+import pydantic
 
 from genshin.models.model import APIModel, Unique
+from genshin.utility import deprecation
 
 from . import constants
 
@@ -41,11 +34,29 @@ def _parse_icon(icon: typing.Union[str, int]) -> str:
     return icon
 
 
+def _get_icon_name_from_id(character_id: int) -> str:
+    if "en-us" not in constants.CHARACTER_NAMES:
+        raise ValueError(
+            "Character names not loaded for en-us. Please run `await genshin.utility.update_characters_any()`."
+        )
+    try:
+        return constants.CHARACTER_NAMES["en-us"][character_id].icon_name
+    except KeyError as e:
+        raise ValueError(
+            f"Can't find character with id {character_id} in character names. Run `await genshin.utility.update_characters_any()`"
+        ) from e
+
+
 def _create_icon(icon: str, specifier: str) -> str:
-    if "http" in icon and "genshin" not in icon:
+    if "http" in icon and "genshin" not in icon and "enka" not in icon:
         return icon  # no point in trying to parse invalid urls
 
     icon_name = _parse_icon(icon)
+    return ICON_BASE + f"{specifier.format(icon_name)}.png"
+
+
+def _create_icon_from_id(character_id: int, specifier: str) -> str:
+    icon_name = _get_icon_name_from_id(character_id)
     return ICON_BASE + f"{specifier.format(icon_name)}.png"
 
 
@@ -60,6 +71,8 @@ def _get_db_char(
 ) -> constants.DBChar:
     """Get the appropriate DBChar object from specific fields."""
     if lang not in constants.CHARACTER_NAMES:
+        if id and name and icon and element and rarity:
+            return constants.DBChar(id or 0, _parse_icon(icon), name, element, rarity, guessed=True)
         raise Exception(
             f"Character names not loaded for {lang!r}. Please run `await genshin.utility.update_characters_any()`."
         )
@@ -118,12 +131,23 @@ class BaseCharacter(APIModel, Unique):
 
     collab: bool = False
 
-    @pydantic.root_validator(pre=True)
-    def __autocomplete(cls, values: typing.Dict[str, typing.Any]) -> typing.Dict[str, typing.Any]:
+    @pydantic.model_validator(mode="before")
+    def __autocomplete(cls, values: dict[str, typing.Any]) -> dict[str, typing.Any]:
         """Complete missing data."""
-        id, name, icon, element, rarity = (values.get(x) for x in ("id", "name", "icon", "element", "rarity"))
+        all_fields = list(cls.model_fields.keys())
+        all_aliases = {f: cls.model_fields[f].alias for f in all_fields if cls.model_fields[f].alias}
+        all_aliases = {k: v for k, v in all_aliases.items() if v is not None}
+        # If the field is aliased, it may have a different key name in 'values',
+        # so we need to get the correct key name from the alias
 
-        char = _get_db_char(id, name, icon, element, rarity, lang=values["lang"])
+        id, name, icon, element, rarity = (
+            values.get(all_aliases.get(x, x)) for x in ("id", "name", "icon", "element", "rarity")
+        )
+        if id is None:
+            # Sometimes the model doesn't have id field, but the data may be present.
+            id = values.get("avatar_id")
+
+        char = _get_db_char(id, name, icon, element, rarity, lang="en-us")
         icon = _create_icon(char.icon_name, "UI_AvatarIcon_{}")
 
         values["id"] = char.id
@@ -154,11 +178,11 @@ class BaseCharacter(APIModel, Unique):
     @property
     @deprecation.deprecated("gacha_art")
     def image(self) -> str:
-        return _create_icon(self.icon, "UI_Gacha_AvatarImg_{}")
+        return _create_icon_from_id(self.id, "UI_Gacha_AvatarImg_{}")
 
     @property
     def gacha_art(self) -> str:
-        return _create_icon(self.icon, "UI_Gacha_AvatarImg_{}")
+        return _create_icon_from_id(self.id, "UI_Gacha_AvatarImg_{}")
 
     @property
     def side_icon(self) -> str:

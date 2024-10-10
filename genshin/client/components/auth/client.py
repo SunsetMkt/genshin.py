@@ -15,7 +15,6 @@ from genshin import constants, errors, types
 from genshin.client import routes
 from genshin.client.components import base
 from genshin.client.manager import managers
-from genshin.client.manager.cookie import fetch_cookie_token_with_game_token, fetch_stoken_with_game_token
 from genshin.models.auth.cookie import (
     AppLoginResult,
     CNWebLoginResult,
@@ -247,35 +246,19 @@ class AuthClient(subclients.AppAuthClient, subclients.WebAuthClient, subclients.
 
         scanned = False
         while True:
-            check_result = await self._check_qrcode(
-                creation_result.app_id, creation_result.device_id, creation_result.ticket
-            )
-            if check_result.status == QRCodeStatus.SCANNED and not scanned:
+            status, cookies = await self._check_qrcode(creation_result.ticket)
+            if status is QRCodeStatus.SCANNED and not scanned:
                 LOGGER_.info("QR code scanned")
                 scanned = True
-            elif check_result.status == QRCodeStatus.CONFIRMED:
+            elif status is QRCodeStatus.CONFIRMED:
                 LOGGER_.info("QR code login confirmed")
                 break
 
-            await asyncio.sleep(2)
+            await asyncio.sleep(1)
 
-        raw_data = check_result.payload.raw
-        assert raw_data is not None
-
-        cookie_token = await fetch_cookie_token_with_game_token(
-            game_token=raw_data.game_token, account_id=raw_data.account_id
-        )
-        stoken = await fetch_stoken_with_game_token(game_token=raw_data.game_token, account_id=int(raw_data.account_id))
-
-        cookies = {
-            "stoken_v2": stoken.token,
-            "ltuid": stoken.aid,
-            "account_id": stoken.aid,
-            "ltmid": stoken.mid,
-            "cookie_token": cookie_token,
-        }
         self.set_cookies(cookies)
-        return QRLoginResult(**cookies)
+        dict_cookies = {key: morsel.value for key, morsel in cookies.items()}
+        return QRLoginResult(**dict_cookies)
 
     @managers.no_multi
     async def create_mmt(self) -> MMT:
@@ -314,7 +297,7 @@ class AuthClient(subclients.AppAuthClient, subclients.WebAuthClient, subclients.
             **auth_utility.CREATE_MMT_HEADERS[self.region],
         }
 
-        body = mmt_result.dict()
+        body = mmt_result.model_dump()
         body["app_key"] = constants.GEETEST_RECORD_KEYS[self.default_game]
 
         assert isinstance(self.cookie_manager, managers.CookieManager)
@@ -402,9 +385,10 @@ class AuthClient(subclients.AppAuthClient, subclients.WebAuthClient, subclients.
             device_id_key: str(uuid.uuid4()).lower(),
         }
 
-        async with aiohttp.ClientSession() as session, session.post(
-            routes.GET_FP_URL.get_url(self.region), json=payload
-        ) as r:
+        async with (
+            aiohttp.ClientSession() as session,
+            session.post(routes.GET_FP_URL.get_url(self.region), json=payload) as r,
+        ):
             data = await r.json()
 
         if data["data"]["code"] != 200:

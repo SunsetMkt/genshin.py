@@ -30,7 +30,6 @@ __all__ = [
     "HKRPG_URL",
     "INFO_LEDGER_URL",
     "LINEUP_URL",
-    "MI18N",
     "NAP_URL",
     "RECORD_URL",
     "REWARD_URL",
@@ -153,6 +152,8 @@ RECORD_URL = GameRoute(
         nap="https://api-takumi-record.mihoyo.com/event/game_record_zzz/api/zzz",
     ),
 )
+NAP_LEDGER_URL = Route("https://sg-public-api.hoyolab.com/event/nap_ledger")
+
 CARD_WAPI_URL = InternationalRoute(
     overseas="https://bbs-api-os.hoyolab.com/game_record/card/wapi",
     chinese="https://api-takumi-record.mihoyo.com/game_record/app/card/wapi",
@@ -220,7 +221,7 @@ REWARD_URL = GameRoute(
 CODE_URL = GameRoute(
     overseas=dict(
         genshin="https://sg-hk4e-api.hoyoverse.com/common/apicdkey/api/webExchangeCdkey",
-        hkrpg="https://sg-hkrpg-api.hoyoverse.com/common/apicdkey/api/webExchangeCdkey",
+        hkrpg="https://sg-hkrpg-api.hoyoverse.com/common/apicdkey/api/webExchangeCdkeyRisk",
         nap="https://public-operation-nap.hoyoverse.com/common/apicdkey/api/webExchangeCdkey",
         tot="https://sg-public-api.hoyoverse.com/common/apicdkey/api/webExchangeCdkey",
     ),
@@ -230,12 +231,12 @@ CODE_URL = GameRoute(
 GACHA_URL = GameRoute(
     overseas=dict(
         genshin="https://public-operation-hk4e-sg.hoyoverse.com/gacha_info/api/",
-        hkrpg="https://api-os-takumi.mihoyo.com/common/gacha_record/api/",
+        hkrpg="https://public-operation-hkrpg-sg.hoyoverse.com/common/gacha_record/api/",
         nap="https://public-operation-nap-sg.hoyoverse.com/common/gacha_record/api/",
     ),
     chinese=dict(
         genshin="https://public-operation-hk4e.mihoyo.com/gacha_info/api/",
-        hkrpg="https://api-takumi.mihoyo.com/common/gacha_record/api/",
+        hkrpg="https://public-operation-hkrpg.mihoyo.com/common/gacha_record/api/",
         nap="https://public-operation-nap.mihoyo.com/common/gacha_record/api/",
     ),
 )
@@ -244,10 +245,6 @@ YSULOG_URL = InternationalRoute(
     chinese="https://hk4e-api.mihoyo.com/common/hk4e_self_help_query/User/",
 )
 
-MI18N = dict(
-    bbs="https://fastcdn.hoyoverse.com/mi18n/bbs_oversea/m11241040191111/m11241040191111-{lang}.json",
-    inquiry="https://mi18n-os.hoyoverse.com/webstatic/admin/mi18n/hk4e_global/m02251421001311/m02251421001311-{lang}.json",
-)
 
 COOKIE_V2_REFRESH_URL = Route("https://sg-public-api.hoyoverse.com/account/ma-passport/token/getBySToken")
 GET_COOKIE_TOKEN_BY_GAME_TOKEN_URL = Route("https://api-takumi.mihoyo.com/auth/api/getCookieAccountInfoByGameToken")
@@ -269,8 +266,8 @@ CHECK_MOBILE_VALIDITY_URL = Route("https://webapi.account.mihoyo.com/Api/is_mobi
 MOBILE_OTP_URL = Route("https://passport-api.miyoushe.com/account/ma-cn-verifier/verifier/createLoginCaptcha")
 MOBILE_LOGIN_URL = Route("https://passport-api.miyoushe.com/account/ma-cn-passport/web/loginByMobileCaptcha")
 
-CREATE_QRCODE_URL = Route("https://hk4e-sdk.mihoyo.com/hk4e_cn/combo/panda/qrcode/fetch")
-CHECK_QRCODE_URL = Route("https://hk4e-sdk.mihoyo.com/hk4e_cn/combo/panda/qrcode/query")
+CREATE_QRCODE_URL = Route("https://passport-api.miyoushe.com/account/ma-cn-passport/web/createQRLogin")
+CHECK_QRCODE_URL = Route("https://passport-api.miyoushe.com/account/ma-cn-passport/web/queryQRLoginStatus")
 
 CREATE_MMT_URL = InternationalRoute(
     overseas="https://sg-public-api.hoyolab.com/event/toolcomsrv/risk/createGeetest?is_high=true",

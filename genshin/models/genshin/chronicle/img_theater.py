@@ -2,23 +2,18 @@ import datetime
 import enum
 import typing
 
-if typing.TYPE_CHECKING:
-    import pydantic.v1 as pydantic
-else:
-    try:
-        import pydantic.v1 as pydantic
-    except ImportError:
-        import pydantic
+import pydantic
 
-from genshin.constants import CN_TIMEZONE
 from genshin.models.genshin import character
-from genshin.models.model import Aliased, APIModel
+from genshin.models.model import Aliased, APIModel, DateTimeField
 
 __all__ = (
     "Act",
     "ActCharacter",
+    "BattleStatCharacter",
     "ImgTheater",
     "ImgTheaterData",
+    "TheaterBattleStats",
     "TheaterBuff",
     "TheaterCharaType",
     "TheaterDifficulty",
@@ -42,6 +37,7 @@ class TheaterDifficulty(enum.IntEnum):
     EASY = 1
     NORMAL = 2
     HARD = 3
+    VISIONARY = 4
 
 
 class ActCharacter(character.BaseCharacter):
@@ -71,19 +67,11 @@ class Act(APIModel):
     medal_obtained: bool = Aliased("is_get_medal")
     round_id: int
     finish_time: int  # As timestamp
-    finish_datetime: datetime.datetime = Aliased("finish_date_time")
+    finish_datetime: DateTimeField = Aliased("finish_date_time")
 
-    @pydantic.validator("finish_datetime", pre=True)
+    @pydantic.field_validator("finish_datetime", mode="before")
     def __parse_datetime(cls, value: typing.Mapping[str, typing.Any]) -> datetime.datetime:
-        return datetime.datetime(
-            year=value["year"],
-            month=value["month"],
-            day=value["day"],
-            hour=value["hour"],
-            minute=value["minute"],
-            second=value["second"],
-            tzinfo=CN_TIMEZONE,
-        )
+        return datetime.datetime(**value)
 
 
 class TheaterStats(APIModel):
@@ -112,37 +100,56 @@ class TheaterSchedule(APIModel):
     end_time: int  # As timestamp
     schedule_type: int  # Not sure what this is
     id: int = Aliased("schedule_id")
-    start_datetime: datetime.datetime = Aliased("start_date_time")
-    end_datetime: datetime.datetime = Aliased("end_date_time")
+    start_datetime: DateTimeField = Aliased("start_date_time")
+    end_datetime: DateTimeField = Aliased("end_date_time")
 
-    @pydantic.validator("start_datetime", "end_datetime", pre=True)
+    @pydantic.field_validator("start_datetime", "end_datetime", mode="before")
     def __parse_datetime(cls, value: typing.Mapping[str, typing.Any]) -> datetime.datetime:
-        return datetime.datetime(
-            year=value["year"],
-            month=value["month"],
-            day=value["day"],
-            hour=value["hour"],
-            minute=value["minute"],
-            second=value["second"],
-            tzinfo=CN_TIMEZONE,
-        )
+        return datetime.datetime(**value)
+
+
+class BattleStatCharacter(APIModel):
+    """Imaginarium theater battle statistic character."""
+
+    id: int = Aliased("avatar_id")
+    icon: str = Aliased("avatar_icon")
+    value: int
+    rarity: int
+
+    @pydantic.field_validator("value", mode="before")
+    def __intify_value(cls, value: str) -> int:
+        if not value:
+            return 0
+        return int(value)
+
+
+class TheaterBattleStats(APIModel):
+    """Imaginarium theater battle statistics."""
+
+    max_defeat_character: typing.Optional[BattleStatCharacter] = Aliased("max_defeat_avatar", default=None)
+    max_damage_character: typing.Optional[BattleStatCharacter] = Aliased("max_damage_avatar", default=None)
+    max_take_damage_character: typing.Optional[BattleStatCharacter] = Aliased("max_take_damage_avatar", default=None)
+    fastest_character_list: typing.Sequence[BattleStatCharacter] = Aliased("shortest_avatar_list")
+    total_cast_seconds: int = Aliased("total_use_time")
 
 
 class ImgTheaterData(APIModel):
     """Imaginarium theater data."""
 
     acts: typing.Sequence[Act] = Aliased(alias="rounds_data")
-    backup_characters: typing.Sequence[ActCharacter] = Aliased(alias="backup_avatars")  # Not sure what this is
+    backup_characters: typing.Sequence[ActCharacter] = Aliased("backup_avatars")  # Not sure what this is
     stats: TheaterStats = Aliased(alias="stat")
     schedule: TheaterSchedule
     has_data: bool
     has_detail_data: bool
+    battle_stats: TheaterBattleStats = Aliased("fight_statisic", default=None)
 
-    @pydantic.root_validator(pre=True)
-    def __unnest_detail(cls, values: typing.Dict[str, typing.Any]) -> typing.Dict[str, typing.Any]:
-        detail: typing.Optional[typing.Dict[str, typing.Any]] = values.get("detail")
+    @pydantic.model_validator(mode="before")
+    def __unnest_detail(cls, values: dict[str, typing.Any]) -> dict[str, typing.Any]:
+        detail: typing.Optional[dict[str, typing.Any]] = values.get("detail")
         values["rounds_data"] = detail.get("rounds_data", []) if detail is not None else []
         values["backup_avatars"] = detail.get("backup_avatars", []) if detail is not None else []
+        values["fight_statisic"] = detail.get("fight_statisic", None) if detail is not None else None
         return values
 
 

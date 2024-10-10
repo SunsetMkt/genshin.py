@@ -69,6 +69,14 @@ EMAIL_VERIFY_HEADERS = {
     "x-rpc-client_type": "2",
 }
 
+QRCODE_HEADERS = {
+    "x-rpc-app_id": "bll8iq97cem8",
+    "x-rpc-client_type": "4",
+    "x-rpc-game_biz": "bbs_cn",
+    "x-rpc-device_fp": "38d7fa104e5d7",
+    "x-rpc-device_id": "586f1440-856a-4243-8076-2b0a12314197",
+}
+
 CREATE_MMT_HEADERS = {
     types.Region.OVERSEAS: {
         "x-rpc-challenge_path": "https://bbs-api-os.hoyolab.com/game_record/app/hkrpg/api/challenge",
@@ -144,12 +152,12 @@ def encrypt_credentials(text: str, key_type: typing.Literal[1, 2]) -> str:
     return base64.b64encode(crypto).decode("utf-8")
 
 
-def get_aigis_header(session_id: str, mmt_data: typing.Dict[str, typing.Any]) -> str:
+def get_aigis_header(session_id: str, mmt_data: dict[str, typing.Any]) -> str:
     """Get aigis header."""
     return f"{session_id};{base64.b64encode(json.dumps(mmt_data).encode()).decode()}"
 
 
-def generate_sign(data: typing.Dict[str, typing.Any], key: str) -> str:
+def generate_sign(data: dict[str, typing.Any], key: str) -> str:
     """Generate a sign for the given `data` and `app_key`."""
     string = ""
     for k in sorted(data.keys()):

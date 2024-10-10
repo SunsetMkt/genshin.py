@@ -4,7 +4,7 @@ import datetime
 import typing
 
 from genshin.constants import CN_TIMEZONE
-from genshin.models.model import Aliased, APIModel, Unique
+from genshin.models.model import Aliased, APIModel, DateTimeField, Unique
 
 __all__ = ["ClaimedDailyReward", "DailyReward", "DailyRewardInfo"]
 
@@ -25,7 +25,7 @@ class DailyReward(APIModel):
     """Claimable daily reward."""
 
     name: str
-    amount: int = Aliased("cnt")
+    amount: int = Aliased("cnt", default=0)
     icon: str
 
 
@@ -36,4 +36,4 @@ class ClaimedDailyReward(APIModel, Unique):
     name: str
     amount: int = Aliased("cnt")
     icon: str = Aliased("img")
-    time: datetime.datetime = Aliased("created_at", timezone=8)
+    time: DateTimeField = Aliased("created_at")
